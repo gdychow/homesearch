@@ -1,0 +1,233 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Accounts ---------------------------------------------------------
+
+model Broker {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+
+  buyingGroups BuyingGroup[]
+  invitations  Invitation[]
+}
+
+model Buyer {
+  id            String   @id @default(cuid())
+  buyingGroupId String
+  email         String   @unique
+  passwordHash  String
+  name          String
+  createdAt     DateTime @default(now())
+
+  buyingGroup       BuyingGroup            @relation(fields: [buyingGroupId], references: [id])
+  mustHaves         BuyerMustHave[]
+  fundamentalRanks  BuyerFundamentalRank[]
+  propertyFeedback  PropertyFeedback[]
+  resetTokens       BuyerPasswordResetToken[]
+}
+
+model BuyerPasswordResetToken {
+  id        String    @id @default(cuid())
+  buyerId   String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  buyer Buyer @relation(fields: [buyerId], references: [id])
+}
+
+// --- Buying groups ------------------------------------------------------
+
+model BuyingGroup {
+  id        String   @id @default(cuid())
+  brokerId  String
+  name      String
+  createdAt DateTime @default(now())
+
+  broker      Broker         @relation(fields: [brokerId], references: [id])
+  buyers      Buyer[]
+  invitations Invitation[]
+  criteria    GroupCriteria?
+  listings    GroupListing[]
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+model Invitation {
+  id              String           @id @default(cuid())
+  buyingGroupId   String
+  invitedByBrokerId String
+  email           String
+  token           String           @unique
+  status          InvitationStatus @default(PENDING)
+  expiresAt       DateTime
+  createdAt       DateTime         @default(now())
+
+  buyingGroup    BuyingGroup @relation(fields: [buyingGroupId], references: [id])
+  invitedByBroker Broker     @relation(fields: [invitedByBrokerId], references: [id])
+}
+
+// Broker-managed search parameters for a buying group. One active row per
+// group for now; revisit versioning if brokers need to see criteria history.
+model GroupCriteria {
+  id             String   @id @default(cuid())
+  buyingGroupId  String   @unique
+  areas          Json // zip codes and/or drawn polygon geometry
+  minBeds        Int?
+  minBaths       Int?
+  minSqft        Int?
+  minPrice       Int?
+  maxPrice       Int?
+  stretchMaxPrice Int? // ceiling if buyers have room to move on price
+  otherFeatures  Json? // free-form checklist (pool, garage, HOA, etc.)
+  updatedAt      DateTime @updatedAt
+
+  buyingGroup BuyingGroup @relation(fields: [buyingGroupId], references: [id])
+}
+
+// --- Preference capture ---------------------------------------------------
+
+// Master list of selectable must-have features, shared across all brokers/buyers.
+model FeatureCatalog {
+  id       String @id @default(cuid())
+  key      String @unique
+  label    String
+  category String?
+
+  buyerMustHaves     BuyerMustHave[]
+  feedbackScores     FeedbackMustHaveScore[]
+}
+
+// A buyer's private ranked must-haves (5-10 items). Visible to their broker,
+// never to other buyers in the same group.
+model BuyerMustHave {
+  id               String @id @default(cuid())
+  buyerId          String
+  featureCatalogId String
+  rank             Int // 1 = most important
+
+  buyer          Buyer          @relation(fields: [buyerId], references: [id])
+  featureCatalog FeatureCatalog @relation(fields: [featureCatalogId], references: [id])
+
+  @@unique([buyerId, featureCatalogId])
+  @@unique([buyerId, rank])
+}
+
+enum Fundamental {
+  LIGHT
+  SPACE
+  LOCATION
+  LAYOUT
+  QUALITY
+  WORK_REQUIRED
+}
+
+// A buyer's private stack-rank of the six fixed fundamentals.
+model BuyerFundamentalRank {
+  id          String      @id @default(cuid())
+  buyerId     String
+  fundamental Fundamental
+  rank        Int // 1-6, 1 = most important
+
+  buyer Buyer @relation(fields: [buyerId], references: [id])
+
+  @@unique([buyerId, fundamental])
+  @@unique([buyerId, rank])
+}
+
+// --- Listings -------------------------------------------------------------
+
+enum ListingSource {
+  MANUAL
+  ZILLOW_SCRAPE
+  MLS
+}
+
+model Listing {
+  id         String        @id @default(cuid())
+  source     ListingSource
+  externalId String? // source's own id (e.g. Zillow zpid, MLS number)
+  address    String
+  zip        String?
+  lat        Float?
+  lng        Float?
+  beds       Int?
+  baths      Float?
+  sqft       Int?
+  price      Int?
+  url        String?
+  rawData    Json? // untouched payload from the source, for future re-parsing
+  createdAt  DateTime @default(now())
+
+  groupListings     GroupListing[]
+  propertyFeedback  PropertyFeedback[]
+}
+
+// A listing attached to a specific buying group, whether added manually by
+// the broker or matched in from an import/scrape.
+model GroupListing {
+  id            String   @id @default(cuid())
+  buyingGroupId String
+  listingId     String
+  addedAt       DateTime @default(now())
+  notes         String?
+
+  buyingGroup BuyingGroup @relation(fields: [buyingGroupId], references: [id])
+  listing     Listing     @relation(fields: [listingId], references: [id])
+
+  @@unique([buyingGroupId, listingId])
+}
+
+// --- Post-visit feedback ---------------------------------------------------
+
+model PropertyFeedback {
+  id        String    @id @default(cuid())
+  buyerId   String
+  listingId String
+  visitDate DateTime?
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  buyer   Buyer   @relation(fields: [buyerId], references: [id])
+  listing Listing @relation(fields: [listingId], references: [id])
+
+  fundamentalScores FeedbackFundamentalScore[]
+  mustHaveScores    FeedbackMustHaveScore[]
+}
+
+model FeedbackFundamentalScore {
+  id          String      @id @default(cuid())
+  feedbackId  String
+  fundamental Fundamental
+  stars       Int // 1-5
+
+  feedback PropertyFeedback @relation(fields: [feedbackId], references: [id])
+
+  @@unique([feedbackId, fundamental])
+}
+
+model FeedbackMustHaveScore {
+  id               String @id @default(cuid())
+  feedbackId       String
+  featureCatalogId String
+  stars            Int // 1-5
+
+  feedback       PropertyFeedback @relation(fields: [feedbackId], references: [id])
+  featureCatalog FeatureCatalog   @relation(fields: [featureCatalogId], references: [id])
+
+  @@unique([feedbackId, featureCatalogId])
+}
