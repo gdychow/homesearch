@@ -50,19 +50,19 @@ services:
     command: sh -c "npx prisma migrate deploy && npm run db:seed"
     profiles: ["tools"]
 
-  # Opt-in: exposes the app externally via a Cloudflare Tunnel instead of
-  # port-forwarding. Requires CLOUDFLARE_TUNNEL_TOKEN in .env (from the
-  # Cloudflare Zero Trust dashboard). Start with:
+  # Not run from this stack — cloudflared runs separately on the host.
+  # Uncomment (and set CLOUDFLARE_TUNNEL_TOKEN in .env) to run it here
+  # instead, pointed at http://app:3000 as the tunnel's origin service.
   #   docker compose --profile tunnel up -d
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    restart: unless-stopped
-    profiles: ["tunnel"]
-    command: tunnel run
-    environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
-    depends_on:
-      - app
+  # cloudflared:
+  #   image: cloudflare/cloudflared:latest
+  #   restart: unless-stopped
+  #   profiles: ["tunnel"]
+  #   command: tunnel run
+  #   environment:
+  #     TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+  #   depends_on:
+  #     - app
 
 volumes:
   postgres_data:

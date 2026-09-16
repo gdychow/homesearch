@@ -82,17 +82,12 @@ Dockerfile's `builder` stage instead, which has the full toolchain.
 
 ### Exposing it via a Cloudflare Tunnel
 
-No port-forwarding needed. Create a tunnel in the Cloudflare Zero Trust
-dashboard, point its public hostname at `http://app:3000` (the app service's
-name on the compose network), and set in `.env`:
+`cloudflared` runs separately on the host here, not as part of this stack —
+point its tunnel's public hostname at `http://localhost:${APP_PORT:-3000}`
+and set `APP_URL` in `.env` to that `https://` tunnel hostname (its scheme
+controls the session cookie's `Secure` flag, so this needs to be right).
 
-```
-APP_URL="https://your-chosen-hostname"
-CLOUDFLARE_TUNNEL_TOKEN="..."   # from the tunnel's install command
-```
-
-Then start the bundled `cloudflared` service alongside the rest of the stack:
-
-```bash
-docker compose --profile tunnel up -d --build
-```
+A commented-out `cloudflared` service is left in `docker-compose.yml` if you
+ever want to run it from this stack instead — uncomment it, set
+`CLOUDFLARE_TUNNEL_TOKEN` in `.env`, point the tunnel's origin at
+`http://app:3000`, and run `docker compose --profile tunnel up -d --build`.
