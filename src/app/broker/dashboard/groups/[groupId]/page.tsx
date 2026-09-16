@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireBroker } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { InviteBuyerForm } from "./invite-buyer-form";
+import { PreferencesPanel } from "./preferences-panel";
 
 export default async function GroupDetailPage({
   params,
@@ -66,6 +67,8 @@ export default async function GroupDetailPage({
         <h2 className="mb-4 text-base font-semibold text-zinc-900">Invite a buyer</h2>
         <InviteBuyerForm buyingGroupId={group.id} />
       </section>
+
+      <PreferencesPanel buyingGroupId={group.id} />
     </div>
   );
 }
