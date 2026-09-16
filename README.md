@@ -65,8 +65,7 @@ npm run dev
 ```bash
 cp .env.example .env   # fill in real SESSION_SECRET / RESEND_API_KEY / APP_URL
 docker compose up -d --build
-docker compose exec app npx prisma migrate deploy
-docker compose exec app npm run db:seed
+docker compose --profile tools run --rm migrate
 ```
 
 The same image/compose file works for local dev and homelab hosting — only
@@ -74,6 +73,12 @@ the `.env` values differ. `APP_URL` matters beyond just building invite/reset
 links: its scheme controls whether the session cookie is marked `Secure`
 (`src/lib/auth/session.ts`), so it must match how users actually reach the
 app or login will silently fail.
+
+Migrations and seeding run via the dedicated `migrate` service, not
+`docker compose exec app ...` — the `app` container is Next's slim
+"standalone" production output and deliberately doesn't include
+devDependencies like the `prisma` CLI or `tsx`. `migrate` builds from the
+Dockerfile's `builder` stage instead, which has the full toolchain.
 
 ### Exposing it via a Cloudflare Tunnel
 

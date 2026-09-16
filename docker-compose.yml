@@ -32,6 +32,24 @@ services:
     ports:
       - "3000:3000"
 
+  # One-off job for `prisma migrate deploy` / `npm run db:seed`. Built from
+  # the `builder` stage (not the slim runtime `app` image) because that's
+  # the stage with devDependencies installed - the prisma CLI and tsx aren't
+  # in the production standalone output, so `docker compose exec app ...`
+  # can't run them. Run with: docker compose run --rm migrate
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-homealign}:${POSTGRES_PASSWORD:-homealign}@postgres:5432/${POSTGRES_DB:-homealign}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "npx prisma migrate deploy && npm run db:seed"
+    profiles: ["tools"]
+
   # Opt-in: exposes the app externally via a Cloudflare Tunnel instead of
   # port-forwarding. Requires CLOUDFLARE_TUNNEL_TOKEN in .env (from the
   # Cloudflare Zero Trust dashboard). Start with:
