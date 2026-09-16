@@ -9,7 +9,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-homealign}"]
       interval: 5s
@@ -30,7 +30,7 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY}
       APP_URL: ${APP_URL:-http://localhost:3000}
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
 
   # One-off job for `prisma migrate deploy` / `npm run db:seed`. Built from
   # the `builder` stage (not the slim runtime `app` image) because that's
