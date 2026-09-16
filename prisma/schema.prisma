@@ -33,6 +33,7 @@ model Buyer {
   fundamentalRanks  BuyerFundamentalRank[]
   propertyFeedback  PropertyFeedback[]
   resetTokens       BuyerPasswordResetToken[]
+  listingInterests  BuyerListingInterest[]
 }
 
 model BuyerPasswordResetToken {
@@ -175,6 +176,7 @@ model Listing {
 
   groupListings     GroupListing[]
   propertyFeedback  PropertyFeedback[]
+  buyerInterests    BuyerListingInterest[]
 }
 
 // A listing attached to a specific buying group, whether added manually by
@@ -190,6 +192,26 @@ model GroupListing {
   listing     Listing     @relation(fields: [listingId], references: [id])
 
   @@unique([buyingGroupId, listingId])
+}
+
+enum ListingInterestStatus {
+  INTERESTED
+  NOT_INTERESTED
+}
+
+// A buyer's own "want to visit" signal on a listing, independent of and
+// prior to any post-visit feedback. Absence of a row means not yet reviewed.
+model BuyerListingInterest {
+  id        String                @id @default(cuid())
+  buyerId   String
+  listingId String
+  status    ListingInterestStatus
+  updatedAt DateTime              @updatedAt
+
+  buyer   Buyer   @relation(fields: [buyerId], references: [id])
+  listing Listing @relation(fields: [listingId], references: [id])
+
+  @@unique([buyerId, listingId])
 }
 
 // --- Post-visit feedback ---------------------------------------------------

@@ -4,6 +4,9 @@ import { requireBroker } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { InviteBuyerForm } from "./invite-buyer-form";
 import { PreferencesPanel } from "./preferences-panel";
+import { CriteriaForm } from "./criteria-form";
+import { AddListingForm } from "./add-listing-form";
+import { ListingsPanel } from "./listings-panel";
 
 export default async function GroupDetailPage({
   params,
@@ -18,6 +21,7 @@ export default async function GroupDetailPage({
     include: {
       buyers: { orderBy: { createdAt: "asc" } },
       invitations: { orderBy: { createdAt: "desc" } },
+      criteria: true,
     },
   });
 
@@ -66,6 +70,20 @@ export default async function GroupDetailPage({
       <section className="rounded-lg border border-zinc-200 bg-white p-6">
         <h2 className="mb-4 text-base font-semibold text-zinc-900">Invite a buyer</h2>
         <InviteBuyerForm buyingGroupId={group.id} />
+      </section>
+
+      <section className="rounded-lg border border-zinc-200 bg-white p-6">
+        <h2 className="mb-4 text-base font-semibold text-zinc-900">Search criteria</h2>
+        <CriteriaForm buyingGroupId={group.id} existing={group.criteria} />
+      </section>
+
+      <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-6">
+        <h2 className="text-base font-semibold text-zinc-900">Listings</h2>
+        <ListingsPanel buyingGroupId={group.id} />
+        <div className="border-t border-zinc-200 pt-4">
+          <h3 className="mb-4 text-sm font-semibold text-zinc-900">Add a listing</h3>
+          <AddListingForm buyingGroupId={group.id} />
+        </div>
       </section>
 
       <PreferencesPanel buyingGroupId={group.id} />
