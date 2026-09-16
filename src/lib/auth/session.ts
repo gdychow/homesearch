@@ -30,7 +30,10 @@ export async function createSessionCookie(payload: SessionPayload) {
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // Tied to APP_URL's scheme, not NODE_ENV: a "secure" cookie is silently
+    // dropped by browsers over plain HTTP, which is how this app is served
+    // on a homelab box without a TLS-terminating reverse proxy in front.
+    secure: (process.env.APP_URL ?? "").startsWith("https://"),
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_DURATION_SECONDS,

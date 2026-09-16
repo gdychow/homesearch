@@ -63,10 +63,31 @@ npm run dev
 ## Homelab deployment
 
 ```bash
-cp .env.example .env   # fill in real SESSION_SECRET / RESEND_API_KEY
+cp .env.example .env   # fill in real SESSION_SECRET / RESEND_API_KEY / APP_URL
 docker compose up -d --build
 docker compose exec app npx prisma migrate deploy
+docker compose exec app npm run db:seed
 ```
 
 The same image/compose file works for local dev and homelab hosting — only
-the `.env` values differ.
+the `.env` values differ. `APP_URL` matters beyond just building invite/reset
+links: its scheme controls whether the session cookie is marked `Secure`
+(`src/lib/auth/session.ts`), so it must match how users actually reach the
+app or login will silently fail.
+
+### Exposing it via a Cloudflare Tunnel
+
+No port-forwarding needed. Create a tunnel in the Cloudflare Zero Trust
+dashboard, point its public hostname at `http://app:3000` (the app service's
+name on the compose network), and set in `.env`:
+
+```
+APP_URL="https://your-chosen-hostname"
+CLOUDFLARE_TUNNEL_TOKEN="..."   # from the tunnel's install command
+```
+
+Then start the bundled `cloudflared` service alongside the rest of the stack:
+
+```bash
+docker compose --profile tunnel up -d --build
+```

@@ -28,8 +28,23 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-homealign}:${POSTGRES_PASSWORD:-homealign}@postgres:5432/${POSTGRES_DB:-homealign}
       SESSION_SECRET: ${SESSION_SECRET}
       RESEND_API_KEY: ${RESEND_API_KEY}
+      APP_URL: ${APP_URL:-http://localhost:3000}
     ports:
       - "3000:3000"
+
+  # Opt-in: exposes the app externally via a Cloudflare Tunnel instead of
+  # port-forwarding. Requires CLOUDFLARE_TUNNEL_TOKEN in .env (from the
+  # Cloudflare Zero Trust dashboard). Start with:
+  #   docker compose --profile tunnel up -d
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - app
 
 volumes:
   postgres_data:
